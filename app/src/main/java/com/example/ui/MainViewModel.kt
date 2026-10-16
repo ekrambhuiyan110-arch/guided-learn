@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import android.os.SystemClock
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import java.io.InputStream
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -31,6 +34,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val resourceParser = ResourceParser()
 
     // Preferences
+    val themeMode: StateFlow<String> = preferencesRepository.themeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "system")
+
+    val colorPalette: StateFlow<String> = preferencesRepository.colorPalette
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "blue")
+
     val defaultTimerMinutes: StateFlow<Int> = preferencesRepository.defaultTimerMinutes
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 5)
 
@@ -345,6 +354,126 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 onResult(false, 0)
             }
+        }
+    }
+
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch {
+            preferencesRepository.setThemeMode(mode)
+        }
+    }
+
+    fun setColorPalette(palette: String) {
+        viewModelScope.launch {
+            preferencesRepository.setColorPalette(palette)
+        }
+    }
+
+    // --- Resilient Timer Engine (Drift-free, survives orientation change) ---
+    private val _timerRemainingSeconds = MutableStateFlow(0)
+    val timerRemainingSeconds = _timerRemainingSeconds.asStateFlow()
+
+    private val _timerTotalSeconds = MutableStateFlow(0)
+    val timerTotalSeconds = _timerTotalSeconds.asStateFlow()
+
+    private val _timerIsRunning = MutableStateFlow(false)
+    val timerIsRunning = _timerIsRunning.asStateFlow()
+
+    private val _timerIsFinished = MutableStateFlow(false)
+    val timerIsFinished = _timerIsFinished.asStateFlow()
+
+    private val _focusLockEnabled = MutableStateFlow(false)
+    val focusLockEnabled = _focusLockEnabled.asStateFlow()
+
+    private var timerJob: Job? = null
+    private var timerTargetElapsedMillis: Long = 0L
+
+    fun initTimer(durationSeconds: Int) {
+        if (!_timerIsRunning.value && (_timerTotalSeconds.value != durationSeconds || _timerRemainingSeconds.value == 0)) {
+            _timerTotalSeconds.value = durationSeconds
+            _timerRemainingSeconds.value = durationSeconds
+            _timerIsFinished.value = false
+        }
+    }
+
+    fun startTimer() {
+        if (_timerRemainingSeconds.value <= 0) return
+        _timerIsRunning.value = true
+        _timerIsFinished.value = false
+        timerTargetElapsedMillis = SystemClock.elapsedRealtime() + (_timerRemainingSeconds.value * 1000L)
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (_timerIsRunning.value) {
+                val now = SystemClock.elapsedRealtime()
+                val remainingMillis = timerTargetElapsedMillis - now
+                val remainingSec = (remainingMillis / 1000L).coerceAtLeast(0L).toInt()
+                _timerRemainingSeconds.value = remainingSec
+                if (remainingSec <= 0) {
+                    _timerIsRunning.value = false
+                    _timerIsFinished.value = true
+                    break
+                }
+                delay(250L)
+            }
+        }
+    }
+
+    fun pauseTimer() {
+        _timerIsRunning.value = false
+        timerJob?.cancel()
+    }
+
+    fun resetTimer(durationSeconds: Int = _timerTotalSeconds.value) {
+        _timerIsRunning.value = false
+        timerJob?.cancel()
+        _timerRemainingSeconds.value = durationSeconds
+        _timerTotalSeconds.value = durationSeconds
+        _timerIsFinished.value = false
+    }
+
+    fun addTimerMinute() {
+        val newSec = _timerRemainingSeconds.value + 60
+        _timerRemainingSeconds.value = newSec
+        _timerTotalSeconds.value = maxOf(_timerTotalSeconds.value, newSec)
+        if (_timerIsRunning.value) {
+            timerTargetElapsedMillis += 60_000L
+        }
+        _timerIsFinished.value = false
+    }
+
+    fun setFocusLock(enabled: Boolean) {
+        _focusLockEnabled.value = enabled
+    }
+
+    // --- Undo Action Support ---
+    data class LastSectionAction(
+        val sectionId: String,
+        val wasCompleted: Boolean,
+        val wasSkipped: Boolean
+    )
+
+    private val _lastSectionAction = MutableStateFlow<LastSectionAction?>(null)
+    val lastSectionAction = _lastSectionAction.asStateFlow()
+
+    fun recordSectionAction(sectionId: String, prevCompleted: Boolean, prevSkipped: Boolean) {
+        _lastSectionAction.value = LastSectionAction(sectionId, prevCompleted, prevSkipped)
+    }
+
+    fun undoLastSectionAction(onUndone: (String) -> Unit = {}) {
+        val action = _lastSectionAction.value ?: return
+        viewModelScope.launch {
+            lessonRepository.setSectionStatus(action.sectionId, action.wasCompleted, action.wasSkipped)
+            _currentSection.value = _currentSection.value?.let {
+                if (it.id == action.sectionId) it.copy(isCompleted = action.wasCompleted, isSkipped = action.wasSkipped) else it
+            }
+            _currentLesson.value = _currentLesson.value?.let { l ->
+                val updated = l.sections.map {
+                    if (it.id == action.sectionId) it.copy(isCompleted = action.wasCompleted, isSkipped = action.wasSkipped) else it
+                }
+                l.copy(sections = updated)
+            }
+            _lastSectionAction.value = null
+            onUndone(action.sectionId)
         }
     }
 

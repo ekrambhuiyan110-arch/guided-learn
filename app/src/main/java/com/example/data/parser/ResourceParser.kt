@@ -225,7 +225,14 @@ class ResourceParser(
         val previews = mutableListOf<ParsedLessonPreview>()
 
         for (block in lessonBlocks) {
-            previews.add(parseSingleLessonBlock(block))
+            val preview = parseSingleLessonBlock(block)
+            val isTemplatePlaceholder = (preview.lesson.title.equals("[Lesson Title]", true) ||
+                    preview.lesson.title.equals("Lesson Title", true)) &&
+                    (preview.lesson.sections.isEmpty() ||
+                            preview.lesson.sections.all { it.title.equals("[Title]", true) || it.title.equals("Title", true) })
+            if (!isTemplatePlaceholder && preview.lesson.title.isNotBlank()) {
+                previews.add(preview)
+            }
         }
 
         return previews
@@ -236,11 +243,19 @@ class ResourceParser(
         val upper = clean.uppercase()
         return upper.startsWith("LESSON TITLE:") ||
                 upper.startsWith("LESSON TITLE :") ||
+                upper.startsWith("LESSON:") ||
                 upper.startsWith("@TYPE:") ||
                 upper.startsWith("@TYPE :") ||
+                upper.startsWith("@TYPE,") ||
+                upper.startsWith("\$TYPE,") ||
+                upper.startsWith("\$TYPE:") ||
+                upper.startsWith("@TITLE:") ||
+                upper.startsWith("\$TITLE:") ||
                 upper.startsWith("@FOCUS") ||
+                upper.startsWith("\$FOCUS") ||
                 upper.startsWith("@ARGUMENTATIVE") ||
-                (upper.startsWith("@") && (upper.contains(":") || upper.contains("TITLE")))
+                upper.startsWith("\$ARGUMENTATIVE") ||
+                ((upper.startsWith("@") || upper.startsWith("$")) && (upper.contains(":") || upper.contains("TITLE") || upper.contains(",")))
     }
 
     private fun splitIntoLessonBlocks(lines: List<String>): List<List<String>> {
@@ -299,32 +314,50 @@ class ResourceParser(
             val trimmed = line.replace("\uFEFF", "").replace("\u200B", "").trim()
             val upper = trimmed.uppercase()
 
-            if (trimmed.startsWith("@")) {
-                val withoutAt = trimmed.removePrefix("@").trim()
-                if (withoutAt.contains("Title:", ignoreCase = true)) {
-                    val parts = withoutAt.split(Regex("Title:", RegexOption.IGNORE_CASE), limit = 2)
-                    val tCand = parts[0].replace(Regex("^Type:\\s*", RegexOption.IGNORE_CASE), "").trim()
+            if (trimmed.startsWith("@") || trimmed.startsWith("$")) {
+                val cleanHeader = trimmed.removePrefix("@").removePrefix("$").trim()
+                if (cleanHeader.contains("Title:", ignoreCase = true)) {
+                    val parts = cleanHeader.split(Regex("Title:", RegexOption.IGNORE_CASE), limit = 2)
+                    val tCand = parts[0]
+                        .replace(Regex("^Type[:\\s,]*", RegexOption.IGNORE_CASE), "")
+                        .replace(Regex("[,@$]+"), "")
+                        .trim()
                     if (tCand.isNotBlank()) lessonType = tCandidateClean(tCand)
-                    title = parts[1].trim()
-                } else if (withoutAt.contains(":")) {
-                    val parts = withoutAt.split(":", limit = 2)
-                    val tCand = parts[0].replace(Regex("^Type:\\s*", RegexOption.IGNORE_CASE), "").trim()
+                    title = parts[1].trim(' ', ':', '-', '[', ']')
+                } else if (cleanHeader.contains(",")) {
+                    val parts = cleanHeader.split(",", limit = 2)
+                    val tCand = parts[0].trim()
+                    if (tCand.isNotBlank()) lessonType = tCandidateClean(tCand)
+                    var afterComma = parts[1].trim()
+                    if (afterComma.startsWith("@") || afterComma.startsWith("$")) {
+                        afterComma = afterComma.removePrefix("@").removePrefix("$").trim()
+                    }
+                    if (afterComma.contains("Title:", ignoreCase = true)) {
+                        title = afterComma.split(Regex("Title:", RegexOption.IGNORE_CASE), limit = 2)[1].trim(' ', ':', '-', '[', ']')
+                    } else if ((afterComma.startsWith("Title", ignoreCase = true) || afterComma.startsWith("Topic", ignoreCase = true)) && afterComma.contains(":")) {
+                        title = afterComma.substringAfter(":").trim(' ', ':', '-', '[', ']')
+                    } else {
+                        title = afterComma.trim(' ', ':', '-', '[', ']')
+                    }
+                } else if (cleanHeader.contains(":")) {
+                    val parts = cleanHeader.split(":", limit = 2)
+                    val tCand = parts[0].replace(Regex("^Type[:\\s,]*", RegexOption.IGNORE_CASE), "").trim()
                     if (tCand.isNotBlank() && (tCand.contains("Writing", true) || tCand.contains("Focus", true) || tCand.contains("Argument", true))) {
                         lessonType = tCandidateClean(tCand)
-                        title = parts[1].trim()
+                        title = parts[1].trim(' ', ':', '-', '[', ']')
                     } else {
-                        title = parts[1].trim()
+                        title = parts[1].trim(' ', ':', '-', '[', ']')
                     }
                 } else {
-                    title = withoutAt
+                    title = cleanHeader.trim(' ', ':', '-', '[', ']')
                 }
             } else if (upper.startsWith("LESSON TITLE:") || upper.startsWith("LESSON TITLE :") ||
                 upper.startsWith("TITLE:") || upper.startsWith("TOPIC:") ||
                 (upper.startsWith("# ") && title.isBlank())) {
-                title = trimmed.substringAfter(":").removePrefix("#").trim()
+                title = trimmed.substringAfter(":").removePrefix("#").trim(' ', ':', '-', '[', ']')
             } else if (upper.startsWith("-DESCRIPTION:") || upper.startsWith("DESCRIPTION:") ||
                 upper.startsWith("LESSON DESCRIPTION:") || upper.startsWith("LESSON DESCRIPTION :")) {
-                description = trimmed.substringAfter(":").trim()
+                description = trimmed.substringAfter(":").trim(' ', ':', '-', '[', ']')
             } else if (upper.startsWith("-GUIDELINES:") || upper.startsWith("GUIDELINES:") ||
                 upper.startsWith("GENERAL GUIDELINES:") ||
                 upper == "GENERAL GUIDELINES START" || upper == "GUIDELINES START" ||
@@ -448,8 +481,11 @@ class ResourceParser(
 
     private fun cleanSectionTitle(raw: String): String {
         return raw
-            .replace(Regex("^(?:SECTION\\s*TITLE|SECTION\\s*HEADING|TITLE|HEADING)[:\\s]*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("^(?:SECTION\\s*\\d+|SECTION\\d+|PART\\s*\\d+)[:\\s-]*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("^\\d+[\\.\\)][:\\s-]*"), "")
+            .replace(Regex("^(?:SECTION\\s*TITLE|SECTION\\s*HEADING|TITLE|HEADING)[:\\s-]*", RegexOption.IGNORE_CASE), "")
             .replace(Regex("^START[:\\s]*", RegexOption.IGNORE_CASE), "")
+            .trim(' ', ':', '-', '\t', '[', ']')
             .trim()
     }
 
@@ -537,7 +573,7 @@ class ResourceParser(
         }
 
         if (secTitle.isBlank()) {
-            secTitle = "Section $order"
+            secTitle = "Topic $order"
         }
 
         val guide = parseSectionGuide(guideLines)

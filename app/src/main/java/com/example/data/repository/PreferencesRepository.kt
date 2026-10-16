@@ -24,6 +24,16 @@ class PreferencesRepository(private val context: Context) {
         val LAST_OPENED_LESSON_ID = stringPreferencesKey("last_opened_lesson_id")
         val LAST_OPENED_SECTION_ID = stringPreferencesKey("last_opened_section_id")
         val SEED_LOADED = booleanPreferencesKey("seed_loaded_v1")
+        val THEME_MODE = stringPreferencesKey("theme_mode") // "system", "light", "dark"
+        val COLOR_PALETTE = stringPreferencesKey("color_palette") // "blue", "orange", "green"
+    }
+
+    val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[Keys.THEME_MODE] ?: "system"
+    }
+
+    val colorPalette: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[Keys.COLOR_PALETTE] ?: "blue"
     }
 
     val defaultTimerMinutes: Flow<Int> = context.dataStore.data.map { prefs ->
@@ -48,6 +58,18 @@ class PreferencesRepository(private val context: Context) {
 
     val isSeedLoaded: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[Keys.SEED_LOADED] ?: false
+    }
+
+    suspend fun setThemeMode(mode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.THEME_MODE] = mode
+        }
+    }
+
+    suspend fun setColorPalette(palette: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.COLOR_PALETTE] = palette
+        }
     }
 
     suspend fun setDefaultTimerMinutes(minutes: Int) {

@@ -239,4 +239,58 @@ Land scarcity presents a constraint for large-scale solar farms.
         assertEquals("Solar and Wind Potential", lesson.sections[1].title)
         assertTrue(lesson.sections[1].modelAnswer.contains("Land scarcity presents"))
     }
+
+    @Test
+    fun testEscapingEconomicTrapFormatAndCleanSectionTitles() {
+        val raw = """
+${'$'}Focus Writing, @Escaping the Economic Trap: An Analysis of Bangladesh's Slowdown, Inflation Crisis, and Governance Reform Imperatives
+-description: ১. সূচনা: প্রথমে মূল সমস্যাটি উল্লেখ করুন। ২. মূল অংশ: খেলাপি ঋণ নিয়ে আলোচনা করুন।
+-Guidelines:
+* Bangladesh growth projection (FY27): 3.2%
+* Average inflation projected: 10.9%
+
+Section1: Executive Summary
+Guide: 
+Answer: The selected source provides a comprehensive diagnostic of Bangladesh's macroeconomic crisis.
+
+Section1: Key Areas of Analysis
+Guide: 
+Answer: Grim Growth Projections and Inflation Trends across South Asia.
+
+Section1: 2. Root Causes: Policy Mistakes vs. Institutional Failures
+Guide: 
+Answer: Domestic policy flaws and governance indicators ranking.
+
+Section1: 3. Financial Sector Distress and Banking Weaknesses
+Guide: 
+Answer: High non-performing loans in banking sector.
+
+Section1: 4. Strategic Roadmaps and Policy Recommendations
+Guide: 
+Answer: Shift to inflation control and targeted digital safety nets.
+        """.trimIndent()
+
+        val previews = parser.parseContent(raw)
+        assertEquals(1, previews.size)
+        val lesson = previews[0].lesson
+        assertEquals("Escaping the Economic Trap: An Analysis of Bangladesh's Slowdown, Inflation Crisis, and Governance Reform Imperatives", lesson.title)
+        assertEquals("Focus Writing", lesson.type)
+        assertEquals(5, lesson.sections.size)
+
+        // Strict validation: Section titles must NOT contain Section1, Section 1, or numbers
+        assertEquals("Executive Summary", lesson.sections[0].title)
+        assertTrue(lesson.sections[0].modelAnswer.contains("comprehensive diagnostic"))
+
+        assertEquals("Key Areas of Analysis", lesson.sections[1].title)
+        assertTrue(lesson.sections[1].modelAnswer.contains("Grim Growth Projections"))
+
+        assertEquals("Root Causes: Policy Mistakes vs. Institutional Failures", lesson.sections[2].title)
+        assertTrue(lesson.sections[2].modelAnswer.contains("Domestic policy flaws"))
+
+        assertEquals("Financial Sector Distress and Banking Weaknesses", lesson.sections[3].title)
+        assertTrue(lesson.sections[3].modelAnswer.contains("High non-performing loans"))
+
+        assertEquals("Strategic Roadmaps and Policy Recommendations", lesson.sections[4].title)
+        assertTrue(lesson.sections[4].modelAnswer.contains("Shift to inflation control"))
+    }
 }

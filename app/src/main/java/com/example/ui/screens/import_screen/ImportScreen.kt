@@ -60,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -79,6 +80,7 @@ import com.example.data.model.IssueSeverity
 import com.example.data.model.ParsedLessonPreview
 import com.example.ui.MainViewModel
 import com.example.ui.components.BanglaAwareText
+import com.example.ui.components.cleanDisplayTitle
 import com.example.ui.theme.AcademicNavy
 import com.example.ui.theme.CardSurface
 import com.example.ui.theme.ErrorBg
@@ -143,6 +145,12 @@ fun ImportScreen(
             } catch (e: Exception) {
                 Toast.makeText(context, "Error opening file: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    LaunchedEffect(selectedTabIndex) {
+        if (selectedTabIndex == 1 && previews.isEmpty() && !isImporting && importError == null) {
+            viewModel.fetchGoogleDocsForImport(googleDocsUrl.trim())
         }
     }
 
@@ -529,12 +537,15 @@ Answer:
                             Spacer(modifier = Modifier.height(6.dp))
 
                             val rules = listOf(
-                                "১. লেসন শিরোনাম: @Type: Title: দিয়ে শুরু হবে (যেমন: @Focus Writing: বাংলাদেশের মূল্যস্ফীতি অথবা @Type: Focus Writing Title: Inflation)",
+                                "১. লেসন শিরোনাম: @Type: Title: বা \$Type, @Title: দিয়ে শুরু হবে (যেমন: @Focus Writing: বাংলাদেশের মূল্যস্ফীতি অথবা \$Focus Writing, @Title: Inflation)",
                                 "২. সারসংক্ষেপ ও গাইডলাইন: -Description: এ সংক্ষিপ্ত বর্ণনা এবং -Guidelines: এর পর মূল পয়েন্ট ও নির্দেশনাবলী",
                                 "৩. সেকশন ফরম্যাট: Section1: Title অথবা এক লাইনে Section2: এবং পরের লাইনে Title—দুটোই সরাসরি কাজ করে",
                                 "৪. গাইড ও উত্তর: Guide: এর পর লেখার নির্দেশনা ও পয়েন্ট এবং Answer: এর পর মডেল উত্তর",
-                                "৫. কোনো START/END দরকার নেই: অতিরিক্ত কোনো সেকশন ট্যাগ বা সমাপ্তি ট্যাগের দরকার নেই; পরবর্তী SectionN: এলেই আগের সেকশন অটো-ক্লোজ হবে",
-                                "৬. শব্দার্থ (Vocabulary): গাইডের ভেতরে '- Term -> বাংলা অর্থ' লিখলেই অ্যাপ স্বয়ংক্রিয়ভাবে শব্দার্থ তালিকায় অন্তর্ভুক্ত করবে"
+                                "৫. উত্তর গণনা: Answer: এর পর থেকে পরবর্তী SectionN: পর্যন্ত পুরো অংশটি সেই সেকশনের মডেল উত্তর হিসেবে কাউন্ট হবে",
+                                "৬. কোনো START/END দরকার নেই: অতিরিক্ত কোনো সেকশন ট্যাগ বা সমাপ্তি ট্যাগের দরকার নেই; পরবর্তী SectionN: এলেই আগের সেকশন অটো-ক্লোজ হবে",
+                                "৭. কার্ড টাইটেল: অ্যাপ সেকশনের কার্ডগুলোতে শুধু টাইটেল যুক্ত করবে, কোনোভাবেই Section1, Section2 লেখা থাকবে না",
+                                "৮. রাইটিং এরিয়া লুকানো: প্রতি সেকশনে Writing Area প্রাথমিক অবস্থায় বন্ধ থাকবে এবং 'Show Answer' এর পাশে 'Writing Area' বাটনে ক্লিক করে অন করা যাবে",
+                                "৯. শব্দার্থ (Vocabulary): গাইডের ভেতরে '- Term -> বাংলা অর্থ' লিখলেই অ্যাপ স্বয়ংক্রিয়ভাবে শব্দার্থ তালিকায় অন্তর্ভুক্ত করবে"
                             )
 
                             rules.forEach { rule ->
@@ -905,9 +916,9 @@ fun LessonPreviewCard(
                 Column(modifier = Modifier.padding(top = 6.dp)) {
                     lesson.sections.forEach { sec ->
                         Text(
-                            text = "• Section ${sec.order}: ${sec.title} (${sec.type})",
+                            text = "• Part ${sec.order}: ${sec.title.cleanDisplayTitle()} (${sec.type})",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 2.dp)
                         )
                     }

@@ -2,7 +2,6 @@ package com.example.ui.screens.review
 
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +17,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Share
@@ -33,8 +35,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,7 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -69,13 +68,8 @@ import com.example.data.export.ExportManager
 import com.example.data.export.ExportMode
 import com.example.ui.MainViewModel
 import com.example.ui.components.BanglaAwareText
-import com.example.ui.theme.CardSurface
-import com.example.ui.theme.SoftBlueContainer
-import com.example.ui.theme.SubtleBorder
-import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.cleanDisplayTitle
+import com.example.ui.theme.extendedColors
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,10 +78,13 @@ fun FinalReviewScreen(
     lessonId: String,
     viewModel: MainViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToSection: ((String, String) -> Unit)? = null,
+    onNavigateToHome: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val extColors = MaterialTheme.extendedColors
 
     LaunchedEffect(lessonId) {
         viewModel.openLesson(lessonId)
@@ -103,7 +100,7 @@ fun FinalReviewScreen(
     val currentLesson = lesson
     if (currentLesson == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Loading review...", color = TextMuted)
+            Text("Loading review...", color = extColors.textMuted)
         }
         return
     }
@@ -123,16 +120,16 @@ fun FinalReviewScreen(
                     text = "Export Options",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = "Content to include:",
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextMuted
+                    color = extColors.textMuted
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 ExportMode.entries.forEach { mode ->
                     Row(
@@ -149,7 +146,7 @@ fun FinalReviewScreen(
                         Text(
                             text = mode.label,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -181,6 +178,7 @@ fun FinalReviewScreen(
                                     }
                                 }
                             },
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("export_pdf_button"),
@@ -188,7 +186,7 @@ fun FinalReviewScreen(
                         ) {
                             Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("PDF (A4)")
+                            Text("PDF (A4)", fontWeight = FontWeight.Bold)
                         }
 
                         // JPEG Export Button
@@ -209,6 +207,7 @@ fun FinalReviewScreen(
                                     }
                                 }
                             },
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("export_jpeg_button"),
@@ -216,11 +215,11 @@ fun FinalReviewScreen(
                         ) {
                             Icon(imageVector = Icons.Default.Image, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("JPEG")
+                            Text("JPEG", fontWeight = FontWeight.SemiBold)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -234,12 +233,13 @@ fun FinalReviewScreen(
                                 Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
                                 showExportSheet = false
                             },
+                            shape = CircleShape,
                             modifier = Modifier.weight(1f).testTag("export_copy_button"),
                             contentPadding = PaddingValues(vertical = 10.dp)
                         ) {
                             Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Copy Text")
+                            Text("Copy Text", fontWeight = FontWeight.SemiBold)
                         }
 
                         // Share Text
@@ -249,12 +249,13 @@ fun FinalReviewScreen(
                                 ExportManager.shareText(context, text, currentLesson.title)
                                 showExportSheet = false
                             },
+                            shape = CircleShape,
                             modifier = Modifier.weight(1f).testTag("export_share_button"),
                             contentPadding = PaddingValues(vertical = 10.dp)
                         ) {
                             Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Share")
+                            Text("Share", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -272,7 +273,7 @@ fun FinalReviewScreen(
                     Text(
                         text = "Final Review",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -283,14 +284,15 @@ fun FinalReviewScreen(
                 actions = {
                     Button(
                         onClick = { showExportSheet = true },
+                        shape = CircleShape,
                         modifier = Modifier
                             .padding(end = 8.dp)
                             .testTag("review_export_button"),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Export")
+                        Text("Export", fontWeight = FontWeight.Bold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -305,44 +307,50 @@ fun FinalReviewScreen(
             contentPadding = PaddingValues(top = 12.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Lesson Header
+            // Lesson Header Floating Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = CardSurface),
-                    shape = RoundedCornerShape(12.dp),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(SubtleBorder))
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Surface(shape = RoundedCornerShape(6.dp), color = SoftBlueContainer) {
+                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
                                 Text(
                                     text = currentLesson.type,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            Text(
-                                text = "${currentLesson.completedSectionCount}/${currentLesson.totalSectionCount} Completed",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (currentLesson.completedSectionCount == currentLesson.totalSectionCount) SuccessGreen else MaterialTheme.colorScheme.primary
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = if (currentLesson.completedSectionCount == currentLesson.totalSectionCount) extColors.successContainer else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = "${currentLesson.completedSectionCount}/${currentLesson.totalSectionCount} Completed",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (currentLesson.completedSectionCount == currentLesson.totalSectionCount) extColors.success else MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         BanglaAwareText(
                             text = currentLesson.title,
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         currentLesson.titleBn?.let { bn ->
@@ -350,8 +358,8 @@ fun FinalReviewScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 BanglaAwareText(
                                     text = bn,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -361,27 +369,34 @@ fun FinalReviewScreen(
 
             // View Mode Selector (Tabs)
             item {
-                TabRow(
-                    selectedTabIndex = viewMode.ordinal,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth()
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 1.dp
                 ) {
-                    Tab(
-                        selected = viewMode == ExportMode.USER_WRITING_ONLY,
-                        onClick = { viewMode = ExportMode.USER_WRITING_ONLY },
-                        text = { Text("My Writing") }
-                    )
-                    Tab(
-                        selected = viewMode == ExportMode.MODEL_ANSWERS_ONLY,
-                        onClick = { viewMode = ExportMode.MODEL_ANSWERS_ONLY },
-                        text = { Text("Model Answers") }
-                    )
-                    Tab(
-                        selected = viewMode == ExportMode.BOTH,
-                        onClick = { viewMode = ExportMode.BOTH },
-                        text = { Text("Both") }
-                    )
+                    TabRow(
+                        selectedTabIndex = viewMode.ordinal,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Tab(
+                            selected = viewMode == ExportMode.USER_WRITING_ONLY,
+                            onClick = { viewMode = ExportMode.USER_WRITING_ONLY },
+                            text = { Text("My Writing", fontWeight = if (viewMode == ExportMode.USER_WRITING_ONLY) FontWeight.Bold else FontWeight.Medium) }
+                        )
+                        Tab(
+                            selected = viewMode == ExportMode.MODEL_ANSWERS_ONLY,
+                            onClick = { viewMode = ExportMode.MODEL_ANSWERS_ONLY },
+                            text = { Text("Model Answers", fontWeight = if (viewMode == ExportMode.MODEL_ANSWERS_ONLY) FontWeight.Bold else FontWeight.Medium) }
+                        )
+                        Tab(
+                            selected = viewMode == ExportMode.BOTH,
+                            onClick = { viewMode = ExportMode.BOTH },
+                            text = { Text("Both", fontWeight = if (viewMode == ExportMode.BOTH) FontWeight.Bold else FontWeight.Medium) }
+                        )
+                    }
                 }
             }
 
@@ -390,18 +405,18 @@ fun FinalReviewScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(10.dp),
-                        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(SubtleBorder))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(20.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 text = "Final Review Checklist",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             currentLesson.finalReview.items.forEach { item ->
                                 Row(
                                     modifier = Modifier.padding(vertical = 3.dp),
@@ -410,14 +425,14 @@ fun FinalReviewScreen(
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = null,
-                                        tint = SuccessGreen,
-                                        modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                                        tint = extColors.success,
+                                        modifier = Modifier.size(18.dp).padding(top = 2.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     BanglaAwareText(
                                         text = item,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = TextSecondary
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -426,99 +441,106 @@ fun FinalReviewScreen(
                 }
             }
 
-            // Sections Combined Content
+            // Sections Content Cards: Clean Titles via cleanDisplayTitle()
             items(currentLesson.sections, key = { it.id }) { sec ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = CardSurface),
-                    shape = RoundedCornerShape(10.dp),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(SubtleBorder))
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = "SECTION ${sec.order}: ${sec.title}",
+                            BanglaAwareText(
+                                text = sec.title.cleanDisplayTitle(),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = if (sec.isCompleted) SoftBlueContainer else MaterialTheme.colorScheme.surfaceVariant
+                                shape = CircleShape,
+                                color = if (sec.isCompleted) extColors.successContainer else MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Text(
-                                    text = if (sec.isCompleted) "Done" else "Incomplete",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    text = if (sec.isCompleted) "Completed" else if (sec.isSkipped) "Skipped" else "Not Done",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (sec.isCompleted) MaterialTheme.colorScheme.primary else TextMuted
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (sec.isCompleted) extColors.success else extColors.textMuted
                                 )
                             }
                         }
 
-                        if (sec.task.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(6.dp))
+                        if (viewMode == ExportMode.USER_WRITING_ONLY || viewMode == ExportMode.BOTH) {
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "Prompt: ${sec.task}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextMuted
+                                text = "Your Draft:",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = extColors.textMuted
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            if (sec.userDraft.isNotBlank()) {
+                                BanglaAwareText(
+                                    text = sec.userDraft,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            } else {
+                                Text(
+                                    text = "(No draft written)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = extColors.textMuted
+                                )
+                            }
                         }
 
-                        // User Writing Block
-                        if (viewMode == ExportMode.USER_WRITING_ONLY || viewMode == ExportMode.BOTH) {
-                            Spacer(modifier = Modifier.height(12.dp))
+                        if (viewMode == ExportMode.MODEL_ANSWERS_ONLY || viewMode == ExportMode.BOTH) {
+                            if (viewMode == ExportMode.BOTH) {
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
                             Text(
-                                text = "MY WRITING",
+                                text = "Model Answer:",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.secondary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            if (sec.userDraft.isNotBlank()) {
-                                BanglaAwareText(
-                                    text = sec.userDraft.trim(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextPrimary
-                                )
-                            } else {
-                                Text(
-                                    text = "(No answer drafted yet for this section)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextMuted,
-                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                )
-                            }
-                        }
-
-                        // Model Answer Block
-                        if (viewMode == ExportMode.MODEL_ANSWERS_ONLY || viewMode == ExportMode.BOTH) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "MODEL ANSWER",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
                             if (sec.modelAnswer.isNotBlank()) {
                                 BanglaAwareText(
-                                    text = sec.modelAnswer.trim(),
+                                    text = sec.modelAnswer,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = TextSecondary
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             } else {
                                 Text(
                                     text = "(No model answer provided)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextMuted,
-                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = extColors.textMuted
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            // Return to Home Button at bottom
+            if (onNavigateToHome != null) {
+                item {
+                    Button(
+                        onClick = onNavigateToHome,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Home, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Finish & Return to Home", fontWeight = FontWeight.Bold)
                     }
                 }
             }

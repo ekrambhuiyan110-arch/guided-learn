@@ -124,6 +124,10 @@ class LessonRepository(
         sectionDao.updateStatus(sectionId, isCompleted = false, isSkipped = true)
     }
 
+    suspend fun setSectionStatus(sectionId: String, isCompleted: Boolean, isSkipped: Boolean) = withContext(Dispatchers.IO) {
+        sectionDao.updateStatus(sectionId, isCompleted = isCompleted, isSkipped = isSkipped)
+    }
+
     suspend fun toggleLessonBookmark(lessonId: String, current: Boolean) = withContext(Dispatchers.IO) {
         lessonDao.setBookmark(lessonId, !current)
     }
